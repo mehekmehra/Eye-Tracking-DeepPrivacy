@@ -1,9 +1,30 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def read_fixations(samples_path):
+def read_fixations(fixations_path):
+    """ takes in the fixations file and organizes it into a dictionary
+    inputs
+    ------
+    fixations_path: string path to the fixations file
+    outputs
+    -------
+    res_dict: dictionary containing relevant information from the samples
+              {participant1: 
+                    {trial1: 
+                        {"orig_side": side the original image is on,
+                        "fixation_intervals": 
+                            [fixation_start_time,
+                            fixation_end_time,
+                            area_of_interest
+                            ]
+                        },
+                    trial2: ...
+                    },
+                participant2: ...
+                }
+    """
     res_dict = {}
-    with open(samples_path, 'r') as file:
+    with open(fixations_path, 'r') as file:
         next(file)
         for line in file:
             # split line into each field
@@ -11,7 +32,6 @@ def read_fixations(samples_path):
       
             participant = cols[0]
             trial = cols[1]
-            # resp_time = float(cols[2])
             orig_side = cols[6]
             fixation_start = float(cols[11])
             fixation_end = float(cols[13])
@@ -27,11 +47,6 @@ def read_fixations(samples_path):
                 if trial not in res_dict[participant]:
                     res_dict[participant][trial] = {}
 
-                # add the response time to the trial subdict
-                # if "resp_time" not in res_dict[participant][trial]:
-                #     # adjust for the time only the fixation is visible
-                #     res_dict[participant][trial]["resp_time"] = resp_time
-
                 # add the side the original image is to the subdict
                 if "orig_side" not in res_dict[participant][trial]:
                     res_dict[participant][trial]["orig_side"] = orig_side
@@ -45,6 +60,14 @@ def read_fixations(samples_path):
     return res_dict
 
 def first_saccade_time_and_accuracy(fixation_dict):
+    """ finds the time the first saccade was initiated and how accurate that saccade was.
+        evaluates these based on which side the original image was on and prints that statistics to the console.
+        also, displays graphs of the proportions at each time of initiation split by accuracy for the side
+        the original image was on and overall.
+        input
+        -----
+        fixations_dict: the dictionary outputted by read_fixations
+    """
     l_acc_times = []
     l_total_true = 0
     l_total_num = 0
@@ -54,7 +77,6 @@ def first_saccade_time_and_accuracy(fixation_dict):
     r_total_true = 0
     r_total_num = 0
     r_inacc_times = []
-
 
     for participant in fixation_dict:
         for trial in fixation_dict[participant]:
@@ -127,44 +149,28 @@ def first_saccade_time_and_accuracy(fixation_dict):
     plot_time_proportions(r_acc_times, r_inacc_times, "Time to Initiate Saccade (ms)", "Proportions of Times to Initiate Saccades (Right)", 400, 10)
 
 
-
-# def avg_response_time(fixation_dict):
-#     l_total_resp_time = 0
-#     l_total_num = 0
-
-#     r_total_resp_time = 0
-#     r_total_num = 0
-
-#     for participant in fixation_dict:
-#         for trial in fixation_dict[participant]:
-#             resp_time = fixation_dict[participant][trial]["resp_time"]
-#             if fixation_dict[participant][trial]["orig_side"] == "Left":
-#                 l_total_resp_time += resp_time
-#                 l_total_num += 1
-#             else:
-#                 r_total_resp_time += resp_time
-#                 r_total_num += 1
-
-
-#     total_resp_time = l_total_resp_time + r_total_resp_time
-#     total_num = l_total_num + r_total_num
-
-#     l_avg = l_total_resp_time/l_total_num
-#     r_avg = r_total_resp_time/r_total_num
-#     avg = total_resp_time/total_num
-
-
-#     print("average response time left: " + str(l_avg))
-#     print("average response time right: " + str(r_avg))
-#     print("average response time overall: " + str(avg))
-#     print("-----------------------------------------------------")
-
 def avg_search_time(fixation_dict):
+    """ finds statistics about how long it takes to find the original image (end of fixation on crosshairs
+        to beginning of final fixation on face).
+        finds the mean, median, maximum and minimum times. 
+        evaluates these based on which side the original image was on and prints that statistics to the console.
+        also, displays graphs of the proportions at each search time split by accuracy for the side
+        the original image was on and overall.
+        input
+        -----
+        fixations_dict: the dictionary outputted by read_fixations
+    """
     left_times = []
     right_times = []
     acc_times = []
     in_acc_times = []
-   
+
+    l_acc_times = []
+    l_in_acc_times = []
+
+    r_acc_times = []
+    r_in_acc_times = []
+
     for participant in fixation_dict:
         for trial in fixation_dict[participant]:
             start_time = 0
@@ -172,11 +178,9 @@ def avg_search_time(fixation_dict):
             i = 0
             intervals = fixation_dict[participant][trial]["fixation_intervals"]
             # find last fixation not on interest area
-
             while intervals[i][2] == "[ ]":
                 start_time = intervals[i][1]
                 i += 1
-            
             i = 1
             # find first fixation on last interest area
             # skip all of the non interest area fixations
@@ -194,15 +198,15 @@ def avg_search_time(fixation_dict):
             if side == "Left":
                 left_times += [trial_time]
                 if intervals[-j][2] == "[ 1]":
-                    acc_times += [trial_time]
+                    l_acc_times += [trial_time]
                 else:
-                    in_acc_times += [trial_time]
+                    l_in_acc_times += [trial_time]
             else:
                 right_times += [trial_time]
                 if intervals[-j][2] == "[ 2]":
-                    acc_times += [trial_time]
+                    r_acc_times += [trial_time]
                 else:
-                    in_acc_times += [trial_time]
+                    r_in_acc_times += [trial_time]
 
     l_max_time = max(left_times)
     l_min_time = min(left_times)
@@ -231,11 +235,26 @@ def avg_search_time(fixation_dict):
     print("maximum time: " + str(max_time))
     print("minimum time: " + str(min_time))
 
-
+    acc_times += l_acc_times + r_acc_times
+    in_acc_times += l_in_acc_times + r_in_acc_times
     
-    plot_time_proportions(acc_times, in_acc_times, "Time to Locate Target (ms)", "Proportions of Times to Locate Target", 4000, 75)
+    plot_time_proportions(acc_times, in_acc_times, "Time to Locate Target (ms)", "Proportions of Times to Locate Target", 4000, 75, True)
+    plot_time_proportions(l_acc_times, l_in_acc_times, "Time to Locate Target (ms)", "Proportions of Times to Locate Target (Left)", 4000, 75, True)
+    plot_time_proportions(r_acc_times, r_in_acc_times, "Time to Locate Target (ms)", "Proportions of Times to Locate Target (Right)", 4000, 75, True)
 
-def plot_time_proportions(acc_times, in_acc_times, x_label, title, max_time, bin_size):
+def plot_time_proportions(acc_times, in_acc_times, x_label, title, max_time, bin_size, print_median=False):
+    """ creates a line histogram with a line for the accurate times and the inaccurate times. 
+        can also compute and print the median. 
+        inputs
+        ------
+        acc_times: a list of the times associated with accurate responses
+        in_acc_times: a list of the times associated with inaccurate responses
+        x_label: label for the x axis
+        title: the title of the plot
+        max_time: the maximum value to display in the x direction
+        bin_size: the size of the bins for the histogram
+        print_median: bool. if True, prints the median
+    """
    
     bin_edges = np.arange(0, max_time, bin_size) 
     total_times = acc_times + in_acc_times
@@ -249,9 +268,12 @@ def plot_time_proportions(acc_times, in_acc_times, x_label, title, max_time, bin
 
     
     total_times.sort() 
-    percentile_index = int(total_count * 0.5)  # Index for 90th percentile
-    acc_90_percentile = total_times[percentile_index]
-    plt.axvline(x=acc_90_percentile, color='r', linestyle='--', label='50% of Times')
+    # find the index for the median
+    percentile_index = int(total_count * 0.5)  
+    median = total_times[percentile_index]
+    if print_median:
+        print("Median" + title[10:] + ": " + str(median))
+    plt.axvline(x=median, color='r', linestyle='--', label='50% of Times')
 
     # Plot the proportions˜
     plt.plot(bin_edges[:-1], acc_proportions, marker='o', label="Accurate Responses")
@@ -265,11 +287,5 @@ def plot_time_proportions(acc_times, in_acc_times, x_label, title, max_time, bin
 
 if __name__ == "__main__":
     res = read_fixations("10viewers_fixations.csv")
-    # print(len(res))
-    # print(res)
-    # print(len(res["SPa\n"]))
-    # print(res["SPa\n"]["1"])
-    # avg_response_time(res)
-    # print(average)
     first_saccade_time_and_accuracy(res)
     avg_search_time(res)

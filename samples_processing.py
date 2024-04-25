@@ -1,6 +1,28 @@
-
-
 def read_samples(samples_path):
+    """ takes in the samples file and organizes it into a dictionary
+    inputs
+    ------
+    samples_path: string path to the samples file
+    outputs
+    -------
+    res_dict: dictionary containing relevant information from the samples
+              {participant1: 
+                    {trial1: 
+                        {"orig_side": side the original image is on,
+                        "order_of_saccades": 
+                            [interest_area1,
+                            interest_area2,
+                            ...
+                            ],
+                        "first_saccade_time": time when the first saccade to interest area is made,
+                        "file_name": name of the stimuli file,
+                        "condition": condition of the experiment (A or B)
+                        },
+                    trial2: ...
+                    },
+                participant2: ...
+                }
+    """
     res_dict = {}
     with open(samples_path, 'r') as file:
         next(file)
@@ -50,6 +72,19 @@ def read_samples(samples_path):
     return res_dict
 
 def saccade_accuracy_helper(samples_dict, field):
+    """ calculates statistics based on the inputted data dictionary and the field, and returns them
+        inputs
+        ------
+        samples_dict: dictionary returned by read_samples
+        field: either 0 or -1, looks at the first saccade (0) or the last saccade (-1)
+        outputs
+        -------
+        left_accuracy: the accuracy of the saccades if the original was on the left
+        right_accuracy: the accuracy of the saccades if the original was on the right
+        accuracy: the accuracy of the saccades
+        a_accuracy: the accuracy of the saccades for condition A
+        b_accuracy: the accuracy of the saccades for condition A
+    """
     left_true_num = 0
     left_total_num = 0
 
@@ -64,6 +99,7 @@ def saccade_accuracy_helper(samples_dict, field):
 
     for participant in samples_dict:
         for trial in samples_dict[participant]:
+            # computes the total numbers of entries for each condition
             condition = samples_dict[participant][trial]["condition"]
             if condition == "A":
                 a_total_num += 1
@@ -73,6 +109,7 @@ def saccade_accuracy_helper(samples_dict, field):
 
             if samples_dict[participant][trial]["orig_side"] == "Left\n":
                 left_total_num += 1
+                # adds to the true count it the participant saccaded to the correct side
                 if samples_dict[participant][trial]["order_of_saccades"][field] == "1":
                     left_true_num += 1
                     if condition == "A":
@@ -82,6 +119,7 @@ def saccade_accuracy_helper(samples_dict, field):
 
             elif samples_dict[participant][trial]["orig_side"] == "Right\n":
                 right_total_num += 1
+                # adds to the true count it the participant saccaded to the correct side
                 if samples_dict[participant][trial]["order_of_saccades"][field] == "2":
                     right_true_num += 1
                     if condition == "A":
@@ -92,16 +130,22 @@ def saccade_accuracy_helper(samples_dict, field):
     true_num = left_true_num + right_true_num
     total_num = left_total_num + right_total_num
 
-    percent_true = true_num/total_num
-    left_percent_true = left_true_num/left_total_num
-    right_percent_true = right_true_num/right_total_num
+    accuracy = true_num/total_num
+    left_accuracy = left_true_num/left_total_num
+    right_accuracy = right_true_num/right_total_num
 
-    a_percent_true = a_true_num/a_total_num
-    b_percent_true = b_true_num/b_total_num
+    a_accuracy = a_true_num/a_total_num
+    b_accuracy = b_true_num/b_total_num
 
-    return left_percent_true, right_percent_true, percent_true, a_percent_true, b_percent_true
+    return left_accuracy, right_accuracy, accuracy, a_accuracy, b_accuracy
+
 
 def saccade_accuracy(samples_dict):
+    """" prints out statistics (computed by saccade_accuracy_helper) about the first and last saccades
+        inputs
+        ------
+        samples_dict: dictionary returned by read_samples
+    """
     f_left, f_right, f_total, f_a, f_b = saccade_accuracy_helper(samples_dict, 0)
     l_left, l_right, l_total, l_a, l_b = saccade_accuracy_helper(samples_dict, -1)
     print("first saccade to interest area accuracies")
@@ -120,7 +164,14 @@ def saccade_accuracy(samples_dict):
     print("----------------------------------------")
     print("")
 
+
 def num_interest_saccades_stats(samples_dict):
+    """ prints the mean number of saccades between the two faces, the maximum number and the names of the stimuli
+        for which participants look back and forth more than 2 times. 
+        inputs
+        ------
+        samples_dict: dictionary returned by read_samples
+    """
     total_num_saccades = 0
     total_num = 0
     max_num_saccades = 0
@@ -133,7 +184,7 @@ def num_interest_saccades_stats(samples_dict):
             total_num_saccades += num_saccades
             max_num_saccades = max(num_saccades, max_num_saccades)
 
-            if num_saccades > 3:
+            if num_saccades > 2:
                 difficult_images += [samples_dict[participant][trial]["file_name"]]
             
             total_num += 1
@@ -143,11 +194,8 @@ def num_interest_saccades_stats(samples_dict):
     print("average number of saccades per trial: " + str(average_per_trial))
     print("most saccades in a trial: " + str(max_num_saccades))
     print("difficult stimuli" + str(difficult_images))
-    # return average_per_trial, max_num_saccades, difficult_images
 
 if __name__ == "__main__":
     res = read_samples("10viewers_samples.csv")
     saccade_accuracy(res)
     num_interest_saccades_stats(res)
-    
-    
